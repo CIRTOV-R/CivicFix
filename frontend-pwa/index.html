@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="CivicFix: reporta incidentes urbanos, sigue su estado y coordina cuadrillas.">
+  <link rel="manifest" href="/pwa/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/pwa/icon.svg">
+  <link rel="apple-touch-icon" href="/pwa/icon.svg">
+  <link rel="stylesheet" href="/pwa/styles.css">
+  <title>CivicFix</title>
+</head>
+<body>
+  <div id="offlineBanner" class="offline-banner" role="status" hidden>Sin conexión: tus reportes se guardarán y se sincronizarán después.</div>
+  <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+
+  <header id="topbar" class="topbar" hidden>
+    <div class="brand">
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24"><path d="M12 2 4 5v6c0 5 3.4 9.5 8 11 4.6-1.5 8-6 8-11V5l-8-3Zm0 2.2 6 2.3V11c0 4-2.6 7.7-6 9-3.4-1.3-6-5-6-9V6.5l6-2.3Z" fill="currentColor"/><path d="M12 7a3.5 3.5 0 0 0-3.5 3.5c0 2.5 3.5 6.5 3.5 6.5s3.5-4 3.5-6.5A3.5 3.5 0 0 0 12 7Zm0 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" fill="currentColor"/></svg>
+      <span>CivicFix</span>
+    </div>
+    <div class="topbar-meta">
+      <span id="roleBadge" class="badge" aria-label="Rol del usuario">—</span>
+      <span id="userName" class="user-name"></span>
+    </div>
+    <button id="logoutBtn" class="icon-btn" type="button" aria-label="Cerrar sesión" title="Cerrar sesión">
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20"><path d="M10 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4v-2H6V5h4V3Zm5.6 4.6L14.2 9l3 3-3 3 1.4 1.4 5-5-5-5.8ZM9 11v2h8v-2H9Z" fill="currentColor"/></svg>
+    </button>
+  </header>
+
+  <main id="main">
+    <section id="authView" class="auth-view" aria-labelledby="authTitle">
+      <div class="auth-card card">
+        <div class="auth-intro">
+          <svg class="auth-mark" aria-hidden="true" viewBox="0 0 48 48" width="48" height="48"><path d="M24 3 7 9v13c0 11 7.4 20.4 17 23 9.6-2.6 17-12 17-23V9L24 3Z" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M24 14a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Zm0 4.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z" fill="currentColor"/></svg>
+          <h1 id="authTitle">CivicFix</h1>
+          <p>Reporta problemas de tu ciudad y sigue su resolución.</p>
+        </div>
+        <div class="segmented" role="tablist" aria-label="Modo de acceso">
+          <button id="tabLogin" class="segment is-active" type="button" role="tab" aria-selected="true" aria-controls="authForm">Iniciar sesión</button>
+          <button id="tabRegister" class="segment" type="button" role="tab" aria-selected="false" aria-controls="authForm">Registrarse</button>
+        </div>
+        <form id="authForm" novalidate>
+          <div id="nameField" class="field" hidden>
+            <label for="authName">Nombre completo</label>
+            <input id="authName" name="name" type="text" autocomplete="name" maxlength="120" required>
+          </div>
+          <div class="field">
+            <label for="authEmail">Correo electrónico</label>
+            <input id="authEmail" name="email" type="email" autocomplete="email" inputmode="email" required>
+          </div>
+          <div class="field">
+            <label for="authPassword">Contraseña</label>
+            <input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="8" required>
+          </div>
+          <div id="confirmField" class="field" hidden>
+            <label for="authConfirmation">Confirmar contraseña</label>
+            <input id="authConfirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+          <div id="roleField" class="field" hidden>
+            <label for="authRole">Rol</label>
+            <select id="authRole" name="role">
+              <option value="">Ciudadano</option>
+              <option value="CUADRILLA">Cuadrilla</option>
+              <option value="SUPERVISOR">Supervisor</option>
+              <option value="ADMINISTRADOR">Administrador</option>
+            </select>
+          </div>
+          <p id="authError" class="form-error" role="alert" hidden></p>
+          <button id="authSubmit" class="btn primary block" type="submit">Entrar</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="appView" hidden>
+      <section id="view-report" class="view" aria-labelledby="reportHeading">
+        <header class="view-header">
+          <h2 id="reportHeading">Reportar incidente</h2>
+          <p class="muted">Cuéntanos qué ocurre y dónde está.</p>
+        </header>
+        <form id="reportForm" class="card form-card" novalidate>
+          <div class="field">
+            <label for="reportTitle">Título</label>
+            <input id="reportTitle" name="title" type="text" maxlength="140" placeholder="Ej. Bache en la vía" required>
+          </div>
+          <div class="field">
+            <label for="reportDescription">Descripción</label>
+            <textarea id="reportDescription" name="description" rows="4" maxlength="2000" placeholder="Describe el incidente y sus efectos" required></textarea>
+          </div>
+          <div class="field">
+            <label for="categorySelect">Categoría</label>
+            <select id="categorySelect" name="category_id" required><option value="">Cargando categorías…</option></select>
+            <p id="categoryHint" class="hint" hidden></p>
+          </div>
+          <div class="field">
+            <label for="prioritySelect">Prioridad</label>
+            <select id="prioritySelect" name="priority">
+              <option value="">Automática (según categoría)</option>
+              <option value="BAJA">BAJA</option>
+              <option value="MEDIA">MEDIA</option>
+              <option value="ALTA">ALTA</option>
+              <option value="CRITICA">CRITICA</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="addressReference">Referencia de ubicación</label>
+            <input id="addressReference" name="address_reference" type="text" maxlength="180" placeholder="Calle, número o punto de referencia">
+          </div>
+          <fieldset class="geo-fieldset">
+            <legend>Ubicación</legend>
+            <div class="field-row">
+              <div class="field">
+                <label for="latitude">Latitud</label>
+                <input id="latitude" name="latitude" type="number" step="any" inputmode="decimal" placeholder="-12.046374" required>
+              </div>
+              <div class="field">
+                <label for="longitude">Longitud</label>
+                <input id="longitude" name="longitude" type="number" step="any" inputmode="decimal" placeholder="-77.042793" required>
+              </div>
+            </div>
+            <p id="geoStatus" class="hint" aria-live="polite">Ubicación no disponible. Puedes escribir las coordenadas.</p>
+            <div class="button-row">
+              <button id="locateBtn" class="btn secondary" type="button">Usar mi ubicación</button>
+              <button id="stopLocateBtn" class="btn ghost" type="button" hidden>Detener seguimiento</button>
+            </div>
+          </fieldset>
+          <fieldset class="photo-fieldset">
+            <legend>Foto antes (opcional)</legend>
+            <div class="button-row wrap">
+              <label class="btn secondary file-btn" for="cameraInput">Tomar foto
+                <input id="cameraInput" class="visually-hidden" type="file" accept="image/*" capture="environment">
+              </label>
+              <label class="btn ghost file-btn" for="galleryInput">Elegir de galería
+                <input id="galleryInput" class="visually-hidden" type="file" accept="image/*">
+              </label>
+            </div>
+            <div id="photoPreviewWrap" class="preview-wrap" hidden>
+              <img id="photoPreview" alt="Vista previa de la foto del incidente">
+              <button id="removePhotoBtn" class="btn ghost small" type="button">Quitar foto</button>
+            </div>
+          </fieldset>
+          <p id="reportError" class="form-error" role="alert" hidden></p>
+          <button id="reportSubmit" class="btn primary block" type="submit">Enviar reporte</button>
+          <p class="hint center">Si no hay conexión, el reporte queda pendiente de sincronización.</p>
+        </form>
+      </section>
+
+      <section id="view-reports" class="view" aria-labelledby="reportsHeading" hidden>
+        <header class="view-header row">
+          <div>
+            <h2 id="reportsHeading">Mis reportes</h2>
+            <p id="pendingCount" class="hint" hidden></p>
+          </div>
+          <button id="refreshReports" class="btn secondary small" type="button">Actualizar</button>
+        </header>
+        <div id="reportDetail" class="card detail-card" hidden aria-live="polite">
+          <button id="detailBack" class="btn ghost small" type="button">Volver a la lista</button>
+          <h3 id="detailTitle"></h3>
+          <div class="detail-head">
+            <span id="detailStatus" class="pill"></span>
+            <span id="detailPriority" class="pill"></span>
+          </div>
+          <p id="detailMeta" class="muted"></p>
+          <p id="detailDescription"></p>
+          <div class="media-grid">
+            <figure><img id="detailBefore" alt="Foto antes del incidente" hidden><figcaption>Antes</figcaption></figure>
+            <figure><img id="detailAfter" alt="Foto después de la resolución" hidden><figcaption>Después</figcaption></figure>
+          </div>
+          <section class="timeline-section" aria-labelledby="timelineHeading">
+            <h4 id="timelineHeading">Historial</h4>
+            <ol id="detailTimeline" class="timeline"></ol>
+          </section>
+          <section id="crewActions" class="crew-actions" aria-labelledby="crewHeading" hidden>
+            <h4 id="crewHeading">Acciones de cuadrilla</h4>
+            <p class="hint">La ubicación actual se usará para registrar la acción.</p>
+            <div class="field">
+              <label for="afterPhotoInput">Foto después (obligatoria para resolver)</label>
+              <input id="afterPhotoInput" type="file" accept="image/*" capture="environment">
+            </div>
+            <div id="afterPreviewWrap" class="preview-wrap" hidden>
+              <img id="afterPreview" alt="Vista previa de la foto posterior">
+            </div>
+            <div class="button-row wrap">
+              <button id="startBtn" class="btn secondary" type="button">Iniciar</button>
+              <button id="resolveBtn" class="btn primary" type="button">Resolver</button>
+              <button id="rejectBtn" class="btn danger" type="button" hidden>Rechazar</button>
+            </div>
+          </section>
+        </div>
+        <div id="reportsList" class="list" aria-live="polite"></div>
+        <p id="reportsEmpty" class="empty" hidden>No hay reportes para mostrar.</p>
+      </section>
+
+      <section id="view-map" class="view" aria-labelledby="mapHeading" hidden>
+        <header class="view-header">
+          <h2 id="mapHeading">Mapa</h2>
+          <p class="muted">Tus reportes y, si corresponde, los puntos del panel.</p>
+        </header>
+        <div id="mapFallback" class="card empty" hidden>El mapa no está disponible sin conexión a los recursos cartográficos. Puedes revisar tus reportes en la lista.</div>
+        <div id="map" class="map" role="img" aria-label="Mapa de incidentes"></div>
+        <ul class="legend" aria-label="Colores por prioridad">
+          <li><span class="dot" style="--dot:#22c55e"></span>BAJA</li>
+          <li><span class="dot" style="--dot:#f59e0b"></span>MEDIA</li>
+          <li><span class="dot" style="--dot:#ef4444"></span>ALTA</li>
+          <li><span class="dot" style="--dot:#a855f7"></span>CRITICA</li>
+        </ul>
+      </section>
+
+      <section id="view-panel" class="view" aria-labelledby="panelHeading" hidden>
+        <header class="view-header">
+          <h2 id="panelHeading">Panel</h2>
+          <p class="muted">Resumen operativo.</p>
+        </header>
+        <div id="summaryCards" class="summary-grid"></div>
+        <section class="card" aria-labelledby="statusChartHeading">
+          <h3 id="statusChartHeading">Incidentes por estado</h3>
+          <div id="statusChart" class="bar-chart"></div>
+        </section>
+        <section class="card" aria-labelledby="heatmapHeading">
+          <h3 id="heatmapHeading">Puntos en el mapa</h3>
+          <div id="heatmapList" class="list compact"></div>
+        </section>
+        <section id="crewSection" class="card" aria-labelledby="crewListHeading" hidden>
+          <h3 id="crewListHeading">Cuadrillas</h3>
+          <div id="crewList" class="list compact"></div>
+        </section>
+        <section id="auditSection" class="card" aria-labelledby="auditHeading" hidden>
+          <h3 id="auditHeading">Registro de auditoría</h3>
+          <div id="auditList" class="list compact"></div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <nav id="tabbar" class="tabbar" aria-label="Navegación principal" hidden>
+    <button class="tab is-active" type="button" data-view="report" aria-controls="view-report" aria-current="page">
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Zm0 2a5 5 0 0 1 5 5c0 3.3-4.1 8.7-5 10-0.9-1.3-5-6.7-5-10a5 5 0 0 1 5-5Zm0 2.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6Z" fill="currentColor"/></svg>
+      <span>Reportar</span>
+    </button>
+    <button class="tab" type="button" data-view="reports" aria-controls="view-reports">
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 2v14h14V5H5Zm2 3h10v2H7V8Zm0 4h10v2H7v-2Zm0 4h7v2H7v-2Z" fill="currentColor"/></svg>
+      <span>Mis reportes</span>
+    </button>
+    <button class="tab" type="button" data-view="map" aria-controls="view-map">
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><path d="m2 5 6-3 8 3 6-3v16l-6 3-8-3-6 3V5Zm6-0.6v12.7l8 3V7.4l-8-3Z" fill="currentColor"/></svg>
+      <span>Mapa</span>
+    </button>
+    <button id="panelTab" class="tab" type="button" data-view="panel" aria-controls="view-panel" hidden>
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><path d="M4 20V10h4v10H4Zm6 0V4h4v16h-4Zm6 0v-7h4v7h-4Z" fill="currentColor"/></svg>
+      <span>Panel</span>
+    </button>
+  </nav>
+
+  <div id="loading" class="loading-overlay" role="status" aria-live="assertive" hidden>
+    <div class="spinner" aria-hidden="true"></div>
+    <span>Cargando…</span>
+  </div>
+
+  <script src="/pwa/app.js" type="module" defer></script>
+</body>
+</html>

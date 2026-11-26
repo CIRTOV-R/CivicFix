@@ -1,0 +1,166 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: civicfix_nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./backend-laravel:/var/www/html:ro
+      - ./frontend-pwa:/var/www/pwa:ro
+      - ./backend-laravel/docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - laravel-app
+    networks:
+      - civicfix_network
+
+  laravel-app:
+    build:
+      context: ./backend-laravel
+      dockerfile: Dockerfile
+    container_name: civicfix_laravel
+    restart: unless-stopped
+    environment:
+      APP_NAME: CivicFix
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY:-}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      APP_LOCALE: es
+      APP_TIMEZONE: America/Caracas
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres-db
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-civicfix_db}
+      DB_USERNAME: ${POSTGRES_USER:-civicfix_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-secret_password}
+      BROADCAST_CONNECTION: log
+      CACHE_STORE: redis
+      FILESYSTEM_DISK: s3
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+      REDIS_CLIENT: predis
+      REDIS_HOST: redis-cache
+      REDIS_PORT: 6379
+      MEDIA_DISK: s3
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+      MINIO_KEY: ${MINIO_KEY:-civicfix_minio}
+      MINIO_SECRET: ${MINIO_SECRET:-change-me-in-production}
+      MINIO_BUCKET: ${MINIO_BUCKET:-civicfix-media}
+      MINIO_REGION: us-east-1
+      MINIO_USE_SSL: false
+      ROUTING_SERVICE_URL: http://fastapi-routing:8000
+      ROUTING_INTERNAL_TOKEN: ${ROUTING_INTERNAL_TOKEN:-change-me-in-production}
+      ROUTING_TIMEOUT: 1.5
+      ROUTING_CIRCUIT_FAILURES: 3
+      ROUTING_CIRCUIT_TTL: 30
+      SANCTUM_TOKEN_EXPIRATION: 43200
+      CIVICFIX_PREFILTER_RADIUS_METERS: 15000
+      CIVICFIX_GEOFENCE_RADIUS_METERS: 50
+      CIVICFIX_SLA_HOURS: 72
+      CIVICFIX_MEDIA_MAX_KB: 350
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      fastapi-routing:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - civicfix_network
+
+  fastapi-routing:
+    build:
+      context: ./routing-fastapi
+      dockerfile: Dockerfile
+    container_name: civicfix_fastapi
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_TOKEN: ${ROUTING_INTERNAL_TOKEN:-change-me-in-production}
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-}
+      OSRM_REQUEST_TIMEOUT: 1.0
+      CARONI_SPLIT_LONGITUDE: -62.715
+      TRAFFIC_FACTOR: 1.25
+    networks:
+      - civicfix_network
+
+  postgres-db:
+    image: postgis/postgis:15-3.4
+    container_name: civicfix_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-civicfix_db}
+      POSTGRES_USER: ${POSTGRES_USER:-civicfix_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret_password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-civicfix_user} -d ${POSTGRES_DB:-civicfix_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - civicfix_network
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: civicfix_redis
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - civicfix_network
+
+  minio:
+    image: minio/minio:latest
+    container_name: civicfix_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_KEY:-civicfix_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET:-change-me-in-production}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    networks:
+      - civicfix_network
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: civicfix_minio_init
+    restart: "no"
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_KEY:-civicfix_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET:-change-me-in-production}
+      MINIO_BUCKET: ${MINIO_BUCKET:-civicfix-media}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until /usr/bin/mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do sleep 2; done
+        /usr/bin/mc mb --ignore-existing "local/$$MINIO_BUCKET"
+    networks:
+      - civicfix_network
+
+networks:
+  civicfix_network:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
